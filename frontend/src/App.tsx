@@ -14,7 +14,8 @@ interface Booking {
   id: number;
   userId: number;
   userName: string;
-  isRecurring: boolean;
+  isRecurring?: boolean;
+  recurring?: boolean;
   bookingDate: string | null;
 }
 
@@ -301,7 +302,7 @@ function App() {
 
   const getActiveBookingsForSlot = (slot: TimeSlot) => {
      const isoDate = getIsoDateForDay(slot.dayOfWeek);
-     return slot.bookings.filter(b => b.isRecurring || b.bookingDate === isoDate);
+     return slot.bookings.filter(b => b.isRecurring || b.recurring || b.bookingDate === isoDate);
   };
 
   // Group slots by day
@@ -326,7 +327,7 @@ function App() {
 
   const userRecurringBookings = timeSlots.filter(slot => {
      if (!currentUser) return false;
-     return slot.bookings.some(b => b.userId === currentUser.id && b.isRecurring);
+     return slot.bookings.some(b => b.userId === currentUser.id && (b.isRecurring || b.recurring));
   });
 
   return (
@@ -527,7 +528,7 @@ function App() {
                           <div className="booked-users">
                             {activeBookings.map((b, i) => (
                               <div key={i} className={`user-pill ${b.userId === currentUser.id ? 'current-user-pill' : ''}`}>
-                                {b.userName} {b.isRecurring && '(Fixo)'}
+                                {b.userName} {(b.isRecurring || b.recurring) && '(Fixo)'}
                               </div>
                             ))}
                           </div>
@@ -575,7 +576,7 @@ function App() {
                           
                           {currentUser.role === 'ALUNO' && alreadyBooked && (
                             <div className="already-booked-container">
-                              <span className="already-booked-msg" style={{display: 'block', marginBottom: '8px'}}>✓ Você está agendado {myBooking.isRecurring && '(Fixo)'}</span>
+                              <span className="already-booked-msg" style={{display: 'block', marginBottom: '8px'}}>✓ Você está agendado {(myBooking.isRecurring || myBooking.recurring) && '(Fixo)'}</span>
                               <button 
                                 className="cancel-book-btn" 
                                 onClick={() => handleCancelBooking(slot)}
