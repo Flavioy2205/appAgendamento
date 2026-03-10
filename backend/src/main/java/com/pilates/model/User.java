@@ -28,12 +28,16 @@ public class User {
     @Column(nullable = false)
     private int totalClasses = 0;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     public User(String cpf, String name, String role, int weeklyLimit, int totalClasses) {
         this.cpf = cpf;
         this.name = name;
         this.role = role;
         this.weeklyLimit = weeklyLimit;
         this.totalClasses = totalClasses;
+        this.active = true;
     }
 
     public User(String cpf, String name, String role, int weeklyLimit) {
@@ -42,5 +46,6 @@ public class User {
         this.role = role;
         this.weeklyLimit = weeklyLimit;
         this.totalClasses = 0;
+        this.active = true;
     }
 }

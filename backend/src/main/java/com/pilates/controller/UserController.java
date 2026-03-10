@@ -42,4 +42,33 @@ public class UserController {
         userRepository.save(user);
         return ResponseEntity.ok(user);
     }
+
+    @GetMapping("/users")
+    public ResponseEntity<Iterable<User>> getAllUsers() {
+        return ResponseEntity.ok(userRepository.findAll());
+    }
+
+    @PutMapping("/users/{id}/deactivate")
+    public ResponseEntity<?> deactivateUser(@PathVariable Long id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setActive(false);
+            userRepository.save(user);
+            return ResponseEntity.ok(Map.of("message", "Aluno inativado com sucesso."));
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Aluno não encontrado."));
+    }
+
+    @PutMapping("/users/{id}/reactivate")
+    public ResponseEntity<?> reactivateUser(@PathVariable Long id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setActive(true);
+            userRepository.save(user);
+            return ResponseEntity.ok(Map.of("message", "Aluno reativado com sucesso."));
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Aluno não encontrado."));
+    }
 }

@@ -73,21 +73,52 @@ public class BookingController {
         Optional<TimeSlot> slotOpt = timeSlotRepository.findById(timeSlotId);
         if (slotOpt.isPresent()) {
             TimeSlot slot = slotOpt.get();
-            final java.time.LocalDate finalBookingDate = bookingDate;
+            final java.time.LocalDate finalBookingDate = bookingDate != null ? bookingDate : java.time.LocalDate.now();
             
-            // Verificação de dupla marcação
-            boolean alreadyBooked = slot.getBookings().stream().anyMatch(b -> 
-                b.getUser().getId().equals(userId) && 
-                (b.isRecurring() || (finalBookingDate != null && finalBookingDate.equals(b.getBookingDate())))
-            );
+            if (isRecurring) {
+                java.time.LocalDate recurringStartDate = finalBookingDate;
+                while (recurringStartDate.isBefore(java.time.LocalDate.now())) {
+                    recurringStartDate = recurringStartDate.plusWeeks(1);
+                }
 
-            if (alreadyBooked) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Você já está agendado neste horário."));
+                int limit = user.getWeeklyLimit() > 0 ? user.getWeeklyLimit() : 1;
+                int occ = user.getTotalClasses() / limit;
+                if(occ == 0) occ = user.getTotalClasses();
+                if(occ == 0) occ = 1;
+                
+                int successfulBookings = 0;
+                for (int i = 0; i < occ; i++) {
+                    java.time.LocalDate currentD = recurringStartDate.plusWeeks(i);
+                    boolean alreadyBooked = slot.getBookings().stream().anyMatch(b -> 
+                        b.getUser().getId().equals(userId) && 
+                        (b.getBookingDate() != null && b.getBookingDate().equals(currentD))
+                    );
+                    if (!alreadyBooked) {
+                        Booking booking = new Booking(user, slot, true, currentD);
+                        bookingRepository.save(booking);
+                        successfulBookings++;
+                    }
+                }
+                
+                if (successfulBookings == 0) {
+                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Você já estava agendado nestes horários recorrentes."));
+                }
+                return ResponseEntity.ok(Map.of("message", "Agendado como recorrente por " + successfulBookings + " semanas a partir de " + java.time.format.DateTimeFormatter.ofPattern("dd/MM").format(recurringStartDate) + "."));
+            } else {
+                // Verificação de dupla marcação simples
+                boolean alreadyBooked = slot.getBookings().stream().anyMatch(b -> 
+                    b.getUser().getId().equals(userId) && 
+                    (b.getBookingDate() != null && b.getBookingDate().equals(finalBookingDate))
+                );
+
+                if (alreadyBooked) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Você já está agendado neste horário nesta data."));
+                }
+
+                Booking booking = new Booking(user, slot, false, finalBookingDate);
+                bookingRepository.save(booking);
+                return ResponseEntity.ok(Map.of("message", "Agendado o dia com sucesso"));
             }
-
-            Booking booking = new Booking(user, slot, isRecurring, bookingDate);
-            bookingRepository.save(booking);
-            return ResponseEntity.ok(Map.of("message", "Agendado com sucesso"));
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Horário não encontrado."));
     }

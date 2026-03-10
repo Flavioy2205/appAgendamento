@@ -8,6 +8,7 @@ interface User {
   role: string;
   weeklyLimit: number;
   totalClasses: number;
+  active: boolean;
 }
 
 interface Booking {
@@ -64,7 +65,7 @@ const getNextDateForDayAndTime = (dayOfWeekStr: string, timeStr: string) => {
   return targetDate;
 };
 
-const getWeeklyDateForDay = (dayOfWeekStr: string) => {
+const getWeeklyDateForDay = (dayOfWeekStr: string, weekOffset: number = 0) => {
   const dayIndexMap: Record<string, number> = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 0 };
   const targetDay = dayIndexMap[dayOfWeekStr];
   const now = new Date();
@@ -72,14 +73,17 @@ const getWeeklyDateForDay = (dayOfWeekStr: string) => {
   // Standardize current day where Sunday is 0 
   let diff = targetDay - now.getDay();
   if (diff < 0) diff += 7; // Ensure we are looking at the current/next occurrence of this week
+
+  // Add the week offset
+  diff += weekOffset * 7;
   
   const targetDate = new Date(now);
   targetDate.setDate(now.getDate() + diff);
   return targetDate;
 };
 
-const getIsoDateForDay = (dayOfWeekStr: string) => {
-  const d = getWeeklyDateForDay(dayOfWeekStr);
+const getIsoDateForDay = (dayOfWeekStr: string, weekOffset: number = 0) => {
+  const d = getWeeklyDateForDay(dayOfWeekStr, weekOffset);
   const year = d.getFullYear();
   const month = (d.getMonth() + 1).toString().padStart(2, '0');
   const day = d.getDate().toString().padStart(2, '0');
@@ -114,6 +118,11 @@ function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [expandedSlotId, setExpandedSlotId] = useState<number | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Admin Panel State
+  const [adminTab, setAdminTab] = useState<'ALUNOS' | 'GRADE'>('ALUNOS');
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   const fetchSlots = async () => {
     try {
@@ -129,11 +138,32 @@ function App() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      setAllUsers(data);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
   useEffect(() => {
     if (currentUser?.role === 'ALUNO' || currentUser?.role === 'ADMIN') {
       fetchSlots();
     }
+    if (currentUser?.role === 'ADMIN') {
+      fetchUsers();
+    }
   }, [currentUser]);
+
+  const toggleUserActive = async (user: User) => {
+     try {
+       const endpoint = user.active ? `/api/users/${user.id}/deactivate` : `/api/users/${user.id}/reactivate`;
+       await fetch(endpoint, { method: 'PUT' });
+       fetchUsers();
+     } catch(e) { console.error(e); }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,6 +215,7 @@ function App() {
       setNewName('');
       setNewLimit(2);
       setNewTotalClasses(0);
+      fetchUsers();
     } catch (error: any) {
       setAdminMsg(error.message);
     }
@@ -301,8 +332,8 @@ function App() {
   };
 
   const getActiveBookingsForSlot = (slot: TimeSlot) => {
-     const isoDate = getIsoDateForDay(slot.dayOfWeek);
-     return slot.bookings.filter(b => b.isRecurring || b.recurring || b.bookingDate === isoDate);
+     const isoDate = getIsoDateForDay(slot.dayOfWeek, weekOffset);
+     return slot.bookings.filter(b => b.bookingDate === isoDate);
   };
 
   // Group slots by day
@@ -329,6 +360,15 @@ function App() {
      if (!currentUser) return false;
      return slot.bookings.some(b => b.userId === currentUser.id && (b.isRecurring || b.recurring));
   });
+
+  const getUserBookedClassesForCurrentWeek = (userId: number) => {
+    let count = 0;
+    timeSlots.forEach(slot => {
+       const active = getActiveBookingsForSlot(slot);
+       count += active.filter(b => b.userId === userId).length;
+    });
+    return count;
+  };
 
   return (
     <>
@@ -405,89 +445,158 @@ function App() {
 
         {/* Admin Area */}
         {currentUser?.role === 'ADMIN' && (
-          <div className="admin-grid">
-            <div className="admin-area glass-panel fade-in">
-              <h2>Cadastrar Aluno</h2>
-              {adminMsg && <div className={adminMsg.includes('sucesso') ? 'success-msg' : 'error-msg'}>{adminMsg}</div>}
-              <form onSubmit={handleRegisterUser} className="modal-form">
-                <div className="form-group">
-                  <label>CPF (Apenas números)</label>
-                  <input 
-                    type="text" 
-                    value={newCpf}
-                    onChange={(e) => setNewCpf(e.target.value)}
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Nome Completo</label>
-                  <input 
-                    type="text" 
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Aulas por Semana (Limite)</label>
-                  <input 
-                    type="number" 
-                    min="1" max="10"
-                    value={newLimit}
-                    onChange={(e) => setNewLimit(Number(e.target.value))}
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Total de Aulas Fechadas (Contrato)</label>
-                  <input 
-                    type="number" 
-                    min="1" max="300"
-                    value={newTotalClasses}
-                    onChange={(e) => setNewTotalClasses(Number(e.target.value))}
-                    required 
-                  />
-                </div>
-                 <button type="submit" className="confirm-btn" style={{marginTop: '10px'}}>Cadastrar</button>
-              </form>
-            </div>
-
-            <div className="admin-area glass-panel fade-in">
-              <h2>Gerenciar Grade Padrão</h2>
-              <p style={{marginBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
-                Gera aulas em todos os dias selecionados, sempre das 08h até as 20h. 
-                Desmarque os dias em que a clínica não funcionará.
-              </p>
-              {scheduleMsg && <div className={scheduleMsg.includes('sucesso') ? 'success-msg' : 'error-msg'}>{scheduleMsg}</div>}
-              <form onSubmit={handleCreateBulkSlots} className="modal-form" style={{paddingRight: '10px'}}>
-                <div className="form-group" style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                  {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].map(day => (
-                     <label key={day} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal'}}>
-                        <input 
-                          type="checkbox" 
-                          checked={bulkDays.includes(day)}
-                          onChange={() => toggleBulkDay(day)}
-                          style={{width: 'auto'}}
-                        /> 
-                        {dayMap[day]}
-                     </label>
-                  ))}
-                  
-                </div>
-                <button type="submit" className="confirm-btn" style={{marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'}}>
-                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                   Gerar Horários (08h às 20h)
+          <div className="admin-container fade-in" style={{marginBottom: '20px'}}>
+             <div className="admin-tabs" style={{display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'center'}}>
+                <button 
+                  className={`book-btn ${adminTab === 'ALUNOS' ? '' : 'cancel-book-btn'}`}
+                  style={{width: 'auto', padding: '10px 20px', backgroundColor: adminTab === 'ALUNOS' ? 'var(--primary-color)' : 'transparent', color: adminTab === 'ALUNOS' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)'}}
+                  onClick={() => setAdminTab('ALUNOS')}
+                >
+                  Gestão de Alunos
                 </button>
-              </form>
-            </div>
+                <button 
+                  className={`book-btn ${adminTab === 'GRADE' ? '' : 'cancel-book-btn'}`}
+                  style={{width: 'auto', padding: '10px 20px', backgroundColor: adminTab === 'GRADE' ? 'var(--primary-color)' : 'transparent', color: adminTab === 'GRADE' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)'}}
+                  onClick={() => setAdminTab('GRADE')}
+                >
+                  Gestão da Grade & Horários
+                </button>
+             </div>
+
+             {adminTab === 'ALUNOS' && (
+               <div className="admin-grid" style={{alignItems: 'start'}}>
+                 <div className="admin-area glass-panel fade-in">
+                   <h2>Cadastrar Aluno</h2>
+                   {adminMsg && <div className={adminMsg.includes('sucesso') ? 'success-msg' : 'error-msg'}>{adminMsg}</div>}
+                   <form onSubmit={handleRegisterUser} className="modal-form">
+                     <div className="form-group">
+                       <label>CPF (Apenas números)</label>
+                       <input 
+                         type="text" 
+                         value={newCpf}
+                         onChange={(e) => setNewCpf(e.target.value)}
+                         required 
+                       />
+                     </div>
+                     <div className="form-group">
+                       <label>Nome Completo</label>
+                       <input 
+                         type="text" 
+                         value={newName}
+                         onChange={(e) => setNewName(e.target.value)}
+                         required 
+                       />
+                     </div>
+                     <div className="form-group">
+                       <label>Aulas por Semana (Limite)</label>
+                       <input 
+                         type="number" 
+                         min="1" max="10"
+                         value={newLimit}
+                         onChange={(e) => setNewLimit(Number(e.target.value))}
+                         required 
+                       />
+                     </div>
+                     <div className="form-group">
+                       <label>Total de Aulas Fechadas (Contrato)</label>
+                       <input 
+                         type="number" 
+                         min="1" max="300"
+                         value={newTotalClasses}
+                         onChange={(e) => setNewTotalClasses(Number(e.target.value))}
+                         required 
+                       />
+                     </div>
+                      <button type="submit" className="confirm-btn" style={{marginTop: '10px'}}>Cadastrar</button>
+                   </form>
+                 </div>
+
+                 <div className="admin-area glass-panel fade-in" style={{maxHeight: '600px', overflowY: 'auto'}}>
+                   <h2>Alunos Cadastrados</h2>
+                   <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                     {allUsers.filter(u => u.role === 'ALUNO').length === 0 ? (
+                       <p style={{textAlign: 'center', color: 'var(--text-secondary)'}}>Nenhum aluno cadastrado.</p>
+                     ) : (
+                       allUsers.filter(u => u.role === 'ALUNO').map(u => (
+                          <div key={u.id} style={{padding: '15px', backgroundColor: 'var(--card-bg)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: u.active ? 1 : 0.6}}>
+                             <div>
+                                <strong style={{display: 'block', fontSize: '1.2rem', color: u.active ? 'var(--text-primary)' : 'var(--text-secondary)'}}>{u.name}{!u.active && ' (Inativo)'}</strong>
+                                <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Contrato: {u.totalClasses} vagas | Agendadas na semana: {getUserBookedClassesForCurrentWeek(u.id)} / {u.weeklyLimit}</span>
+                             </div>
+                             <button 
+                                onClick={() => toggleUserActive(u)}
+                                style={{padding: '8px 12px', borderRadius: '4px', border: 'none', backgroundColor: u.active ? '#ef4444' : '#10b981', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap'}}
+                             >
+                                {u.active ? 'Inativar' : 'Reativar'}
+                             </button>
+                          </div>
+                       ))
+                     )}
+                   </div>
+                 </div>
+               </div>
+             )}
+
+             {adminTab === 'GRADE' && (
+               <div className="admin-grid" style={{justifyContent: 'center'}}>
+                 <div className="admin-area glass-panel fade-in" style={{width: '100%', maxWidth: '600px'}}>
+                   <h2>Gerenciar Grade Padrão</h2>
+                   <p style={{marginBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
+                     Gera aulas em todos os dias selecionados, sempre das 08h até as 20h. 
+                     Desmarque os dias em que a clínica não funcionará.
+                   </p>
+                   {scheduleMsg && <div className={scheduleMsg.includes('sucesso') ? 'success-msg' : 'error-msg'}>{scheduleMsg}</div>}
+                   <form onSubmit={handleCreateBulkSlots} className="modal-form" style={{paddingRight: '10px'}}>
+                     <div className="form-group" style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                       {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].map(day => (
+                          <label key={day} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal'}}>
+                             <input 
+                               type="checkbox" 
+                               checked={bulkDays.includes(day)}
+                               onChange={() => toggleBulkDay(day)}
+                               style={{width: 'auto'}}
+                             /> 
+                             {dayMap[day]}
+                          </label>
+                       ))}
+                       
+                     </div>
+                     <button type="submit" className="confirm-btn" style={{marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'}}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                        Gerar Horários (08h às 20h)
+                     </button>
+                   </form>
+                 </div>
+               </div>
+             )}
           </div>
         )}
 
         {/* Schedule Grid Area (For both Aluno and Admin) */}
-        {currentUser && (
+        {(currentUser?.role === 'ALUNO' || (currentUser?.role === 'ADMIN' && adminTab === 'GRADE')) && (
           <div className="schedule-area fade-in">
             {errorMsg && <div className="error-msg">{errorMsg}</div>}
             
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', padding: '10px 15px', backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.4)', boxShadow: '0 4px 6px rgba(0,0,0,0.02)'}}>
+               <button 
+                  className="book-btn" 
+                  style={{padding: '8px 15px', width: 'auto'}} 
+                  onClick={() => setWeekOffset(prev => prev - 1)}
+               >
+                 « Semana Anterior
+               </button>
+               <span style={{fontWeight: 600, color: 'var(--text-primary)'}}>
+                 {weekOffset === 0 ? "Nesta Semana" : weekOffset === 1 ? "Próxima Semana" : weekOffset === -1 ? "Semana Passada" : weekOffset > 1 ? `+${weekOffset} Semanas` : `${Math.abs(weekOffset)} Semanas Atrás`}
+               </span>
+               <button 
+                  className="book-btn" 
+                  style={{padding: '8px 15px', width: 'auto'}} 
+                  onClick={() => setWeekOffset(prev => prev + 1)}
+               >
+                 Próxima Semana »
+               </button>
+            </div>
+
             {loading ? (
               <div className="loading-spinner">Carregando horários...</div>
             ) : sortedDays.length === 0 ? (
@@ -498,7 +607,7 @@ function App() {
                   <h2 className="day-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{dayMap[dayCode]}</span>
                     <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
-                      Semana Atual: {formatDisplayDate(getWeeklyDateForDay(dayCode))}
+                      Data: {formatDisplayDate(getWeeklyDateForDay(dayCode, weekOffset))}
                     </span>
                   </h2>
                   <div className="slots-grid">
@@ -537,15 +646,15 @@ function App() {
                             <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto'}} className="fade-in">
                               <button 
                                 className="book-btn"
-                                onClick={() => { handleBook(slot.id, false, getIsoDateForDay(slot.dayOfWeek)); setExpandedSlotId(null); }}
+                                onClick={() => { handleBook(slot.id, false, getIsoDateForDay(slot.dayOfWeek, weekOffset)); setExpandedSlotId(null); }}
                                 disabled={isFull || bookingLoading || userBookingsCount >= currentUser.weeklyLimit}
                               >
-                                {userBookingsCount >= currentUser.weeklyLimit ? 'Limite Atingido' : isFull ? 'Esgotado' : (bookingLoading ? 'Agendando...' : `Apenas Dia ${formatDisplayDate(getWeeklyDateForDay(dayCode))}`)}
+                                {userBookingsCount >= currentUser.weeklyLimit ? 'Limite Atingido' : isFull ? 'Esgotado' : (bookingLoading ? 'Agendando...' : `Apenas Dia ${formatDisplayDate(getWeeklyDateForDay(dayCode, weekOffset))}`)}
                               </button>
 
                               <button 
                                 className="book-recurring-btn cancel-book-btn"
-                                onClick={() => { handleBook(slot.id, true, null); setExpandedSlotId(null); }}
+                                onClick={() => { handleBook(slot.id, true, getIsoDateForDay(slot.dayOfWeek, weekOffset)); setExpandedSlotId(null); }}
                                 disabled={isFull || bookingLoading || userBookingsCount >= currentUser.weeklyLimit}
                               >
                                 {userBookingsCount >= currentUser.weeklyLimit ? 'Limite Atingido' : isFull ? 'Esgotado' : (bookingLoading ? 'Processando...' : 'Fixo Toda Semana')}

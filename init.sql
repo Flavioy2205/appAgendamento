@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
     weekly_limit INT NOT NULL DEFAULT 2,
-    total_classes INT NOT NULL DEFAULT 0
+    total_classes INT NOT NULL DEFAULT 0,
+    active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS time_slots (
