@@ -221,9 +221,9 @@
 
 .limit-info {
   font-size: 0.85rem;
-  color: #fbbf24;
+  color: #000000;
   margin-left: 10px;
-  background: rgba(251, 191, 36, 0.1);
+  background: rgba(0, 0, 0, 0.05);
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -257,8 +257,8 @@
   margin-top: 12px;
   width: 100%;
   font-size: 0.9rem;
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
+  color: #000000;
+  background: rgba(0, 0, 0, 0.03);
   padding: 8px 12px;
   border-radius: 6px;
   text-align: left;

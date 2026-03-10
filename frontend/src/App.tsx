@@ -109,8 +109,8 @@ function App() {
   const [adminMsg, setAdminMsg] = useState('');
 
   // Admin State (Schedules)
-  const [bulkDays, setBulkDays] = useState<string[]>(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']);
   const [scheduleMsg, setScheduleMsg] = useState('');
+  const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
   // Booking State
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
@@ -221,32 +221,58 @@ function App() {
     }
   };
 
-  const toggleBulkDay = (day: string) => {
-    setBulkDays(prev => 
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
-  };
-
-  const handleCreateBulkSlots = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleToggleDayOpen = async (day: string, isOpen: boolean) => {
+    setLoading(true);
     setScheduleMsg('');
     try {
-      if (bulkDays.length === 0) {
-        throw new Error('Selecione ao menos um dia.');
+      if (isOpen) {
+         const slotsOfThisDay = timeSlots.filter(s => s.dayOfWeek === day);
+         await Promise.all(slotsOfThisDay.map(s => 
+            fetch(`/api/admin/timeslots/${s.id}`, { method: 'DELETE' })
+         ));
+         setScheduleMsg(`A agenda para ${dayMap[day]} foi fechada.`);
+      } else {
+         const res = await fetch('/api/admin/timeslots/bulk', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ activeDays: [day], capacity: 3 })
+         });
+         if (!res.ok) throw new Error('Erro ao abrir agenda');
+         setScheduleMsg(`A agenda para ${dayMap[day]} foi aberta (08h às 20h).`);
       }
-      const res = await fetch('/api/admin/timeslots/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activeDays: bulkDays, capacity: 3 })
-      });
-      if (!res.ok) {
-        throw new Error('Erro ao criar horários agrupados');
-      }
-      const respData = await res.json();
-      setScheduleMsg(respData.message || 'Lote criado com sucesso!');
       await fetchSlots();
-    } catch (error: any) {
-      setScheduleMsg(error.message);
+    } catch(e: any) {
+      console.error(e);
+      setScheduleMsg(e.message || 'Erro ao atualizar a agenda para o dia selecionado.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleSingleSlot = async (day: string, hour: number, existingSlot?: TimeSlot) => {
+    setLoading(true);
+    setScheduleMsg('');
+    try {
+      if (existingSlot) {
+        const res = await fetch(`/api/admin/timeslots/${existingSlot.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Erro ao remover horário.');
+        setScheduleMsg(`Horário das ${hour.toString().padStart(2, '0')}:00 fechado.`);
+      } else {
+        const startTimeStr = `${hour.toString().padStart(2, '0')}:00`;
+        const res = await fetch('/api/admin/timeslots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dayOfWeek: day, startTime: startTimeStr, capacity: 3 })
+        });
+        if (!res.ok) throw new Error('Erro ao adicionar horário.');
+        setScheduleMsg(`Horário das ${hour.toString().padStart(2, '0')}:00 aberto.`);
+      }
+      await fetchSlots();
+    } catch(e: any) {
+      console.error(e);
+      setScheduleMsg(e.message || 'Erro ao organizar a agenda.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -404,7 +430,7 @@ function App() {
                   </span>
                 </div>
                 {userRecurringBookings.length > 0 && (
-                  <div style={{marginTop: '5px', fontSize: '0.9rem', color: '#1e40af'}}>
+                  <div style={{marginTop: '5px', fontSize: '0.9rem', color: 'var(--danger-color)'}}>
                      Lembrete: Você tem agendamento(s) recorrente(s) de
                     <strong>
                       {userRecurringBookings.map(slot => ` ${dayMap[slot.dayOfWeek]} às ${formatTime(slot.startTime)}`).join(', ')}
@@ -446,17 +472,41 @@ function App() {
         {/* Admin Area */}
         {currentUser?.role === 'ADMIN' && (
           <div className="admin-container fade-in" style={{marginBottom: '20px'}}>
-             <div className="admin-tabs" style={{display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'center'}}>
+             <div className="admin-tabs" style={{display: 'flex', gap: '40px', marginBottom: '30px', justifyContent: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0'}}>
                 <button 
-                  className={`book-btn ${adminTab === 'ALUNOS' ? '' : 'cancel-book-btn'}`}
-                  style={{width: 'auto', padding: '10px 20px', backgroundColor: adminTab === 'ALUNOS' ? 'var(--primary-color)' : 'transparent', color: adminTab === 'ALUNOS' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)'}}
+                  style={{
+                    width: 'auto', 
+                    padding: '10px 0px', 
+                    fontSize: '1.2rem',
+                    fontWeight: adminTab === 'ALUNOS' ? 'bold' : 'normal',
+                    backgroundColor: 'transparent', 
+                    color: adminTab === 'ALUNOS' ? 'var(--text-primary)' : 'var(--text-secondary)', 
+                    border: 'none',
+                    borderBottom: adminTab === 'ALUNOS' ? '3px solid var(--accent-color)' : '3px solid transparent',
+                    borderRadius: '0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    marginBottom: '-1px'
+                  }}
                   onClick={() => setAdminTab('ALUNOS')}
                 >
                   Gestão de Alunos
                 </button>
                 <button 
-                  className={`book-btn ${adminTab === 'GRADE' ? '' : 'cancel-book-btn'}`}
-                  style={{width: 'auto', padding: '10px 20px', backgroundColor: adminTab === 'GRADE' ? 'var(--primary-color)' : 'transparent', color: adminTab === 'GRADE' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)'}}
+                  style={{
+                    width: 'auto', 
+                    padding: '10px 0px', 
+                    fontSize: '1.2rem',
+                    fontWeight: adminTab === 'GRADE' ? 'bold' : 'normal',
+                    backgroundColor: 'transparent', 
+                    color: adminTab === 'GRADE' ? 'var(--text-primary)' : 'var(--text-secondary)', 
+                    border: 'none',
+                    borderBottom: adminTab === 'GRADE' ? '3px solid var(--accent-color)' : '3px solid transparent',
+                    borderRadius: '0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    marginBottom: '-1px'
+                  }}
                   onClick={() => setAdminTab('GRADE')}
                 >
                   Gestão da Grade & Horários
@@ -521,7 +571,7 @@ function App() {
                           <div key={u.id} style={{padding: '15px', backgroundColor: 'var(--card-bg)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: u.active ? 1 : 0.6}}>
                              <div>
                                 <strong style={{display: 'block', fontSize: '1.2rem', color: u.active ? 'var(--text-primary)' : 'var(--text-secondary)'}}>{u.name}{!u.active && ' (Inativo)'}</strong>
-                                <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Contrato: {u.totalClasses} vagas | Agendadas na semana: {getUserBookedClassesForCurrentWeek(u.id)} / {u.weeklyLimit}</span>
+                                <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Contrato: {u.totalClasses} aulas | Agendadas na semana: {getUserBookedClassesForCurrentWeek(u.id)} / {u.weeklyLimit}</span>
                              </div>
                              <button 
                                 onClick={() => toggleUserActive(u)}
@@ -538,46 +588,96 @@ function App() {
              )}
 
              {adminTab === 'GRADE' && (
-               <div className="admin-grid" style={{justifyContent: 'center'}}>
-                 <div className="admin-area glass-panel fade-in" style={{width: '100%', maxWidth: '600px'}}>
-                   <h2>Gerenciar Grade Padrão</h2>
-                   <p style={{marginBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
-                     Gera aulas em todos os dias selecionados, sempre das 08h até as 20h. 
-                     Desmarque os dias em que a clínica não funcionará.
+               <div className="admin-grid" style={{justifyContent: 'center', maxWidth: '800px', margin: '0 auto'}}>
+                 <div className="admin-area glass-panel fade-in" style={{width: '100%'}}>
+                   <h2 style={{textAlign: 'center', marginBottom: '10px'}}>Horários de Funcionamento</h2>
+                   <p style={{marginBottom: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center'}}>
+                     Selecione abaixo quais dias da semana estarão abertos ou escolha <strong>horários específicos</strong> individualmente.
                    </p>
-                   {scheduleMsg && <div className={scheduleMsg.includes('sucesso') ? 'success-msg' : 'error-msg'}>{scheduleMsg}</div>}
-                   <form onSubmit={handleCreateBulkSlots} className="modal-form" style={{paddingRight: '10px'}}>
-                     <div className="form-group" style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                       {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].map(day => (
-                          <label key={day} style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal'}}>
-                             <input 
-                               type="checkbox" 
-                               checked={bulkDays.includes(day)}
-                               onChange={() => toggleBulkDay(day)}
-                               style={{width: 'auto'}}
-                             /> 
-                             {dayMap[day]}
-                          </label>
-                       ))}
-                       
-                     </div>
-                     <button type="submit" className="confirm-btn" style={{marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'}}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                        Gerar Horários (08h às 20h)
-                     </button>
-                   </form>
+                   {scheduleMsg && <div className={scheduleMsg.includes('Erro') || scheduleMsg.includes('fechad') ? 'error-msg' : 'success-msg'} style={{marginBottom: '15px'}}>{scheduleMsg}</div>}
+                   <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                     {dayOrder.map(day => {
+                        const slotsOfThisDay = timeSlots.filter(s => s.dayOfWeek === day);
+                        const isOpen = slotsOfThisDay.length > 0;
+                        const hoursRange = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+                        return (
+                          <div key={day} style={{padding: '20px', backgroundColor: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)'}}>
+                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isOpen ? '15px' : '0', borderBottom: isOpen ? '1px solid var(--border-color)' : 'none', paddingBottom: isOpen ? '15px' : '0'}}>
+                                <div>
+                                   <strong style={{display: 'block', fontSize: '1.2rem', color: isOpen ? 'var(--text-primary)' : 'var(--text-secondary)'}}>{dayMap[day]}</strong>
+                                   <span style={{fontSize: '0.85rem', fontWeight: 600, color: isOpen ? 'var(--success-color)' : 'var(--danger-color)'}}>
+                                      {isOpen ? `${slotsOfThisDay.length} horários abertos` : 'Agenda fechada'}
+                                   </span>
+                                </div>
+                                <button 
+                                   onClick={() => handleToggleDayOpen(day, isOpen)}
+                                   disabled={loading}
+                                   style={{
+                                     padding: '8px 16px', 
+                                     borderRadius: '6px', 
+                                     border: `1px solid ${isOpen ? 'var(--danger-color)' : 'var(--success-color)'}`, 
+                                     backgroundColor: isOpen ? 'transparent' : 'var(--success-color)', 
+                                     color: isOpen ? 'var(--danger-color)' : 'white', 
+                                     fontWeight: 'bold', 
+                                     cursor: loading ? 'not-allowed' : 'pointer',
+                                     transition: 'all 0.2s',
+                                     width: '160px'
+                                   }}
+                                >
+                                   {isOpen ? 'Fechar Dia Todo' : 'Abrir Agenda 08h-20h'}
+                                </button>
+                             </div>
+                             
+                             {isOpen && (
+                               <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px'}}>
+                                 {hoursRange.map(hour => {
+                                    const hStr = `${hour.toString().padStart(2, '0')}:00`;
+                                    const exactMatch = `${hStr}:00`;
+                                    const existingSlot = slotsOfThisDay.find(s => s.startTime === exactMatch || s.startTime === hStr || s.startTime.startsWith(hStr));
+                                    const isSlotOpen = !!existingSlot;
+                                    
+                                    return (
+                                      <button
+                                        key={hour}
+                                        onClick={() => handleToggleSingleSlot(day, hour, existingSlot)}
+                                        disabled={loading}
+                                        style={{
+                                          padding: '6px 12px',
+                                          borderRadius: '20px',
+                                          fontSize: '0.9rem',
+                                          fontWeight: 600,
+                                          border: `1px solid ${isSlotOpen ? 'var(--accent-color)' : 'var(--border-color)'}`,
+                                          backgroundColor: isSlotOpen ? 'var(--success-bg)' : 'transparent',
+                                          color: isSlotOpen ? 'var(--accent-color)' : 'var(--text-secondary)',
+                                          cursor: loading ? 'wait' : 'pointer',
+                                          transition: 'all 0.2s',
+                                          opacity: loading ? 0.6 : 1
+                                        }}
+                                        title={isSlotOpen ? `Clique para fechar horário das ${hStr}` : `Clique para abrir horário das ${hStr}`}
+                                      >
+                                        {hStr}
+                                      </button>
+                                    );
+                                 })}
+                               </div>
+                             )}
+                          </div>
+                        );
+                     })}
+                   </div>
                  </div>
                </div>
              )}
           </div>
         )}
 
-        {/* Schedule Grid Area (For both Aluno and Admin) */}
-        {(currentUser?.role === 'ALUNO' || (currentUser?.role === 'ADMIN' && adminTab === 'GRADE')) && (
+        {/* Schedule Grid Area (For Aluno Only) */}
+        {currentUser?.role === 'ALUNO' && (
           <div className="schedule-area fade-in">
             {errorMsg && <div className="error-msg">{errorMsg}</div>}
             
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', padding: '10px 15px', backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.4)', boxShadow: '0 4px 6px rgba(0,0,0,0.02)'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', padding: '10px 15px', backgroundColor: 'var(--card-bg, #fff)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', position: 'sticky', top: '20px', zIndex: 100, backdropFilter: 'blur(8px)'}}>
                <button 
                   className="book-btn" 
                   style={{padding: '8px 15px', width: 'auto'}} 
