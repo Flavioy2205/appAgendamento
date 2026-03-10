@@ -1,0 +1,13 @@
+com/pilates/repository/UserRepository.class
+com/pilates/PilatesApplication.class
+com/pilates/model/TimeSlot.class
+com/pilates/dto/TimeSlotDTO.class
+com/pilates/repository/TimeSlotRepository.class
+com/pilates/controller/TimeSlotController.class
+com/pilates/repository/BookingRepository.class
+com/pilates/dto/BookingDTO.class
+com/pilates/model/User.class
+com/pilates/controller/UserController.class
+com/pilates/model/Booking.class
+com/pilates/config/CorsConfig.class
+com/pilates/controller/BookingController.class

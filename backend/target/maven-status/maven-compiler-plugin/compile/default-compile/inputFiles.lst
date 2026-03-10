@@ -1,0 +1,13 @@
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/repository/UserRepository.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/PilatesApplication.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/controller/UserController.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/controller/BookingController.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/dto/TimeSlotDTO.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/repository/TimeSlotRepository.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/dto/BookingDTO.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/config/CorsConfig.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/model/Booking.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/repository/BookingRepository.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/model/User.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/model/TimeSlot.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/controller/TimeSlotController.java
