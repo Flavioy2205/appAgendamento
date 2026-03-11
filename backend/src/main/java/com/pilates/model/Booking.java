@@ -20,6 +20,9 @@ public class Booking {
     @JoinColumn(name = "time_slot_id", nullable = false)
     private TimeSlot timeSlot;
 
+    @Column(name = "user_name")
+    private String userName;
+
     @Column(nullable = false)
     private boolean isRecurring = true;
 
@@ -30,6 +33,7 @@ public class Booking {
         this.user = user;
         this.timeSlot = timeSlot;
         this.isRecurring = true;
+        this.userName = user.getName();
     }
 
     public Booking(User user, TimeSlot timeSlot, boolean isRecurring, java.time.LocalDate bookingDate) {
@@ -37,5 +41,6 @@ public class Booking {
         this.timeSlot = timeSlot;
         this.isRecurring = isRecurring;
         this.bookingDate = bookingDate;
+        this.userName = user.getName();
     }
 }
