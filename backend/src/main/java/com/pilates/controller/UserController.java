@@ -61,6 +61,30 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Aluno não encontrado."));
     }
 
+    @PutMapping("/users/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            
+            if (payload.containsKey("name")) user.setName(payload.get("name").toString());
+            if (payload.containsKey("cpf")) {
+                String newCpf = payload.get("cpf").toString();
+                if (!newCpf.equals(user.getCpf()) && userRepository.findByCpf(newCpf).isPresent()) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Este CPF já está sendo usado por outro aluno."));
+                }
+                user.setCpf(newCpf);
+            }
+            if (payload.containsKey("phone")) user.setPhone(payload.get("phone") != null ? payload.get("phone").toString() : null);
+            if (payload.containsKey("weeklyLimit")) user.setWeeklyLimit(Integer.parseInt(payload.get("weeklyLimit").toString()));
+            if (payload.containsKey("totalClasses")) user.setTotalClasses(Integer.parseInt(payload.get("totalClasses").toString()));
+            
+            userRepository.save(user);
+            return ResponseEntity.ok(user);
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Aluno não encontrado."));
+    }
+
     @PutMapping("/users/{id}/reactivate")
     public ResponseEntity<?> reactivateUser(@PathVariable Long id) {
         Optional<User> userOpt = userRepository.findById(id);

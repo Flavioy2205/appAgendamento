@@ -23,20 +23,18 @@ public class PilatesApplication {
         return (args) -> {
             if (userRepository.count() == 0) {
                 userRepository.save(new User("12345678910", "Administrador", null, "ADMIN", 999));
-                userRepository.save(new User("11111111111", "João Silva", null, "ALUNO", 2));
-                userRepository.save(new User("22222222222", "Maria Santos", null, "ALUNO", 3));
             }
-            
+
             // Check if db is empty before populating
             if (timeSlotRepository.count() == 0) {
                 // Populate morning to evening routines for Monday and Wednesday
-                java.time.DayOfWeek[] days = {java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.WEDNESDAY};
-                
+                java.time.DayOfWeek[] days = { java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.WEDNESDAY };
+
                 for (java.time.DayOfWeek day : days) {
                     LocalTime start = LocalTime.of(7, 0); // 7 AM
-                    LocalTime end = LocalTime.of(20, 0);  // 8 PM
+                    LocalTime end = LocalTime.of(20, 0); // 8 PM
 
-                    while(start.isBefore(end)) {
+                    while (start.isBefore(end)) {
                         TimeSlot slot = new TimeSlot(day, start);
                         timeSlotRepository.save(slot);
                         start = start.plusHours(1); // 1-hour classes

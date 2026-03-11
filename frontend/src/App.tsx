@@ -5,6 +5,7 @@ interface User {
   id: number;
   cpf: string;
   name: string;
+  phone?: string;
   role: string;
   weeklyLimit: number;
   totalClasses: number;
@@ -108,6 +109,7 @@ function App() {
   const [newLimit, setNewLimit] = useState(2);
   const [newTotalClasses, setNewTotalClasses] = useState(0);
   const [adminMsg, setAdminMsg] = useState('');
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
 
   // Admin State (Schedules)
   const [scheduleMsg, setScheduleMsg] = useState('');
@@ -199,22 +201,43 @@ function App() {
     e.preventDefault();
     setAdminMsg('');
     try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          cpf: newCpf.replace(/\D/g, ''), 
-          name: newName,
-          phone: newPhone,
-          weeklyLimit: newLimit,
-          totalClasses: newTotalClasses
-        })
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Erro ao cadastrar');
+      if (editingUserId) {
+        const res = await fetch(`/api/users/${editingUserId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            cpf: newCpf.replace(/\D/g, ''), 
+            name: newName,
+            phone: newPhone,
+            weeklyLimit: newLimit,
+            totalClasses: newTotalClasses
+          })
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Erro ao atualizar');
+        }
+        setAdminMsg('Aluno atualizado com sucesso!');
+        setEditingUserId(null);
+      } else {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            cpf: newCpf.replace(/\D/g, ''), 
+            name: newName,
+            phone: newPhone,
+            weeklyLimit: newLimit,
+            totalClasses: newTotalClasses
+          })
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'Erro ao cadastrar');
+        }
+        setAdminMsg('Usuário cadastrado com sucesso!');
       }
-      setAdminMsg('Usuário cadastrado com sucesso!');
+      
       setNewCpf('');
       setNewName('');
       setNewPhone('');
@@ -224,6 +247,27 @@ function App() {
     } catch (error: any) {
       setAdminMsg(error.message);
     }
+  };
+
+  const handleEditClick = (user: User) => {
+    setEditingUserId(user.id);
+    setNewCpf(user.cpf);
+    setNewName(user.name);
+    setNewPhone(user.phone || '');
+    setNewLimit(user.weeklyLimit);
+    setNewTotalClasses(user.totalClasses);
+    setAdminMsg('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setNewCpf('');
+    setNewName('');
+    setNewPhone('');
+    setNewLimit(2);
+    setNewTotalClasses(0);
+    setAdminMsg('');
   };
 
   const handleToggleDayOpen = async (day: string, isOpen: boolean) => {
@@ -546,7 +590,7 @@ function App() {
              {adminTab === 'ALUNOS' && (
                <div className="admin-grid" style={{alignItems: 'start'}}>
                  <div className="admin-area glass-panel fade-in">
-                   <h2>Cadastrar Aluno</h2>
+                   <h2>{editingUserId ? 'Editar Aluno' : 'Cadastrar Aluno'}</h2>
                    {adminMsg && <div className={adminMsg.includes('sucesso') ? 'success-msg' : 'error-msg'}>{adminMsg}</div>}
                    <form onSubmit={handleRegisterUser} className="modal-form">
                      <div className="form-group">
@@ -596,7 +640,16 @@ function App() {
                          required 
                        />
                      </div>
-                      <button type="submit" className="confirm-btn" style={{marginTop: '10px'}}>Cadastrar</button>
+                      <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
+                        <button type="submit" className="confirm-btn" style={{flex: 1}}>
+                           {editingUserId ? 'Salvar Alterações' : 'Cadastrar'}
+                        </button>
+                        {editingUserId && (
+                           <button type="button" onClick={handleCancelEdit} style={{flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer'}}>
+                             Cancelar
+                           </button>
+                        )}
+                      </div>
                    </form>
                  </div>
 
@@ -609,15 +662,28 @@ function App() {
                        allUsers.filter(u => u.role === 'ALUNO').map(u => (
                           <div key={u.id} style={{padding: '15px', backgroundColor: 'var(--card-bg)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: u.active ? 1 : 0.6}}>
                              <div>
-                                <strong style={{display: 'block', fontSize: '1.2rem', color: u.active ? 'var(--text-primary)' : 'var(--text-secondary)'}}>{u.name}{!u.active && ' (Inativo)'}</strong>
-                                <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Contrato: {u.totalClasses} aulas | Agendadas na semana: {getUserBookedClassesForCurrentWeek(u.id)} / {u.weeklyLimit}</span>
+                                <strong style={{display: 'block', fontSize: '1.2rem', color: u.active ? 'var(--text-primary)' : 'var(--text-secondary)'}}>
+                                   {u.name}{!u.active && ' (Inativo)'}
+                                </strong>
+                                <div style={{fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px'}}>
+                                   <div>CPF: {u.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")} {u.phone ? `| Tel: ${u.phone}` : ''}</div>
+                                   <div>Contrato: {u.totalClasses} aulas | Agendadas na semana: {getUserBookedClassesForCurrentWeek(u.id)} / {u.weeklyLimit}</div>
+                                </div>
                              </div>
-                             <button 
-                                onClick={() => toggleUserActive(u)}
-                                style={{padding: '8px 12px', borderRadius: '4px', border: 'none', backgroundColor: u.active ? '#ef4444' : '#10b981', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap'}}
-                             >
-                                {u.active ? 'Inativar' : 'Reativar'}
-                             </button>
+                             <div style={{display: 'flex', gap: '8px'}}>
+                                <button 
+                                   onClick={() => handleEditClick(u)}
+                                   style={{padding: '8px 12px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--accent-color)', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'}}
+                                >
+                                   Editar
+                                </button>
+                                <button 
+                                   onClick={() => toggleUserActive(u)}
+                                   style={{padding: '8px 12px', borderRadius: '4px', border: 'none', backgroundColor: u.active ? '#ef4444' : '#10b981', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap'}}
+                                >
+                                   {u.active ? 'Inativar' : 'Reativar'}
+                                </button>
+                             </div>
                           </div>
                        ))
                      )}
