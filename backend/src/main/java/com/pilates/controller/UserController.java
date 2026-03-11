@@ -31,6 +31,7 @@ public class UserController {
     public ResponseEntity<?> createUser(@RequestBody Map<String, Object> payload) {
         String cpf = payload.get("cpf").toString();
         String name = payload.get("name").toString();
+        String phone = payload.containsKey("phone") && payload.get("phone") != null ? payload.get("phone").toString() : null;
         int weeklyLimit = payload.containsKey("weeklyLimit") ? Integer.parseInt(payload.get("weeklyLimit").toString()) : 2;
         int totalClasses = payload.containsKey("totalClasses") ? Integer.parseInt(payload.get("totalClasses").toString()) : 0;
         
@@ -38,7 +39,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "CPF já cadastrado"));
         }
         
-        User user = new User(cpf, name, "ALUNO", weeklyLimit, totalClasses);
+        User user = new User(cpf, name, phone, "ALUNO", weeklyLimit, totalClasses);
         userRepository.save(user);
         return ResponseEntity.ok(user);
     }

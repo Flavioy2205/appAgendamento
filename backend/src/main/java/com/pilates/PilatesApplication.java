@@ -22,9 +22,9 @@ public class PilatesApplication {
     public CommandLineRunner loadData(TimeSlotRepository timeSlotRepository, UserRepository userRepository) {
         return (args) -> {
             if (userRepository.count() == 0) {
-                userRepository.save(new User("12345678910", "Administrador", "ADMIN", 999));
-                userRepository.save(new User("11111111111", "João Silva", "ALUNO", 2));
-                userRepository.save(new User("22222222222", "Maria Santos", "ALUNO", 3));
+                userRepository.save(new User("12345678910", "Administrador", null, "ADMIN", 999));
+                userRepository.save(new User("11111111111", "João Silva", null, "ALUNO", 2));
+                userRepository.save(new User("22222222222", "Maria Santos", null, "ALUNO", 3));
             }
             
             // Check if db is empty before populating

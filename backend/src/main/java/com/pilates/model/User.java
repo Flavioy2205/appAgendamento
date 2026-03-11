@@ -19,6 +19,9 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    @Column
+    private String phone;
+
     @Column(nullable = false)
     private String role; // "ADMIN" or "ALUNO"
 
@@ -31,18 +34,20 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
-    public User(String cpf, String name, String role, int weeklyLimit, int totalClasses) {
+    public User(String cpf, String name, String phone, String role, int weeklyLimit, int totalClasses) {
         this.cpf = cpf;
         this.name = name;
+        this.phone = phone;
         this.role = role;
         this.weeklyLimit = weeklyLimit;
         this.totalClasses = totalClasses;
         this.active = true;
     }
 
-    public User(String cpf, String name, String role, int weeklyLimit) {
+    public User(String cpf, String name, String phone, String role, int weeklyLimit) {
         this.cpf = cpf;
         this.name = name;
+        this.phone = phone;
         this.role = role;
         this.weeklyLimit = weeklyLimit;
         this.totalClasses = 0;

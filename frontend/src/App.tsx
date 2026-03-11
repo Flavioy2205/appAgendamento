@@ -104,6 +104,7 @@ function App() {
   // Admin State (Users)
   const [newCpf, setNewCpf] = useState('');
   const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newLimit, setNewLimit] = useState(2);
   const [newTotalClasses, setNewTotalClasses] = useState(0);
   const [adminMsg, setAdminMsg] = useState('');
@@ -204,6 +205,7 @@ function App() {
         body: JSON.stringify({ 
           cpf: newCpf.replace(/\D/g, ''), 
           name: newName,
+          phone: newPhone,
           weeklyLimit: newLimit,
           totalClasses: newTotalClasses
         })
@@ -215,6 +217,7 @@ function App() {
       setAdminMsg('Usuário cadastrado com sucesso!');
       setNewCpf('');
       setNewName('');
+      setNewPhone('');
       setNewLimit(2);
       setNewTotalClasses(0);
       fetchUsers();
@@ -562,6 +565,15 @@ function App() {
                          value={newName}
                          onChange={(e) => setNewName(e.target.value)}
                          required 
+                       />
+                     </div>
+                     <div className="form-group">
+                       <label>Telefone / WhatsApp</label>
+                       <input 
+                         type="text" 
+                         value={newPhone}
+                         onChange={(e) => setNewPhone(e.target.value)}
+                         placeholder="Ex: (11) 99999-9999"
                        />
                      </div>
                      <div className="form-group">
