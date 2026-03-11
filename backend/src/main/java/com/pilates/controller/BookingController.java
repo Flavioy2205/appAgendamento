@@ -132,4 +132,17 @@ public class BookingController {
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Agendamento não encontrado."));
     }
+
+    @DeleteMapping("/admin/bookings/date/{date}")
+    public ResponseEntity<?> cancelAllBookingsOnDate(@PathVariable String date) {
+        java.time.LocalDate targetDate = java.time.LocalDate.parse(date);
+        List<Booking> toDelete = bookingRepository.findAll().stream()
+                .filter(b -> b.getBookingDate() != null && b.getBookingDate().equals(targetDate))
+                .collect(Collectors.toList());
+        
+        int count = toDelete.size();
+        bookingRepository.deleteAll(toDelete);
+        
+        return ResponseEntity.ok(Map.of("message", "Foram cancelados " + count + " agendamentos para a data " + date + ". As cotas dos alunos foram liberadas."));
+    }
 }

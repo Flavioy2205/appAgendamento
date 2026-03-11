@@ -110,6 +110,7 @@ function App() {
 
   // Admin State (Schedules)
   const [scheduleMsg, setScheduleMsg] = useState('');
+  const [holidayDate, setHolidayDate] = useState('');
   const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
   // Booking State
@@ -271,6 +272,31 @@ function App() {
     } catch(e: any) {
       console.error(e);
       setScheduleMsg(e.message || 'Erro ao organizar a agenda.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelHoliday = async () => {
+    if (!holidayDate) {
+      setScheduleMsg('Selecione uma data para o feriado.');
+      return;
+    }
+    const conf = window.confirm(`Deseja realmente cancelar TODOS os agendamentos do dia ${holidayDate.split('-').reverse().join('/')}? \nAtenção: essa ação irá limpar a agenda desse dia específico e não apagará os horários da sua grade padrão.`);
+    if (!conf) return;
+
+    setLoading(true);
+    setScheduleMsg('');
+    try {
+      const res = await fetch(`/api/admin/bookings/date/${holidayDate}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erro ao processar o cancelamento do feriado.');
+      const data = await res.json();
+      setScheduleMsg(data.message || 'Feriado processado com sucesso.');
+      setHolidayDate('');
+      await fetchSlots();
+    } catch(e: any) {
+      console.error(e);
+      setScheduleMsg(e.message || 'Erro ao cancelar aulas.');
     } finally {
       setLoading(false);
     }
@@ -590,7 +616,45 @@ function App() {
              {adminTab === 'GRADE' && (
                <div className="admin-grid" style={{justifyContent: 'center', maxWidth: '800px', margin: '0 auto'}}>
                  <div className="admin-area glass-panel fade-in" style={{width: '100%'}}>
-                   <h2 style={{textAlign: 'center', marginBottom: '10px'}}>Horários de Funcionamento</h2>
+                   <h2 style={{textAlign: 'center', marginBottom: '10px'}}>Gestão de Feriados e Exceções</h2>
+                   <p style={{marginBottom: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center'}}>
+                     Selecione uma data específica (ex: Feriado) para <strong>cancelar todas as aulas daquele dia</strong>. <br/>
+                     O sistema cancelará as marcações mantendo sua grade intacta, e a cota dos alunos será devolvida no ato.
+                   </p>
+                   
+                   <div style={{display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center', marginBottom: '30px', padding: '20px', backgroundColor: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)'}}>
+                      <div className="form-group" style={{marginBottom: 0, width: '200px'}}>
+                         <input 
+                            type="date" 
+                            value={holidayDate}
+                            onChange={(e) => setHolidayDate(e.target.value)}
+                            style={{width: '100%', cursor: 'pointer'}}
+                         />
+                      </div>
+                      <button 
+                         onClick={handleCancelHoliday}
+                         disabled={loading || !holidayDate}
+                         style={{
+                           padding: '12px 24px', 
+                           borderRadius: '8px', 
+                           border: 'none', 
+                           backgroundColor: 'var(--danger-color)', 
+                           color: 'white', 
+                           fontWeight: 'bold', 
+                           cursor: loading || !holidayDate ? 'not-allowed' : 'pointer',
+                           transition: 'all 0.2s',
+                           opacity: loading || !holidayDate ? 0.6 : 1,
+                           display: 'flex',
+                           alignItems: 'center',
+                           gap: '8px'
+                         }}
+                      >
+                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                         Cancelar Marcações do Dia
+                      </button>
+                   </div>
+                   
+                   <h2 style={{textAlign: 'center', marginBottom: '10px', marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--border-color)'}}>Horários da Grade Padrão</h2>
                    <p style={{marginBottom: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)', textAlign: 'center'}}>
                      Selecione abaixo quais dias da semana estarão abertos ou escolha <strong>horários específicos</strong> individualmente.
                    </p>
@@ -672,8 +736,8 @@ function App() {
           </div>
         )}
 
-        {/* Schedule Grid Area (For Aluno Only) */}
-        {currentUser?.role === 'ALUNO' && (
+        {/* Schedule Grid Area (For both Aluno and Admin) */}
+        {(currentUser?.role === 'ALUNO' || (currentUser?.role === 'ADMIN' && adminTab === 'GRADE')) && (
           <div className="schedule-area fade-in">
             {errorMsg && <div className="error-msg">{errorMsg}</div>}
             
