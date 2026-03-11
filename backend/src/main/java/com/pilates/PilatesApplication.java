@@ -11,7 +11,10 @@ import org.springframework.context.annotation.Bean;
 
 import java.time.LocalTime;
 
+import org.springframework.scheduling.annotation.EnableScheduling;
+
 @SpringBootApplication
+@EnableScheduling
 public class PilatesApplication {
 
     public static void main(String[] args) {

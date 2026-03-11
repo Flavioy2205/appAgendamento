@@ -6,3 +6,7 @@ target/
 .vscode/
 dist/
 .env
+
+# WhatsApp QR Code and scripts
+qrcode.png
+get_qrcode.py

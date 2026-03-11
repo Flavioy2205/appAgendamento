@@ -11,3 +11,5 @@ com/pilates/controller/UserController.class
 com/pilates/model/Booking.class
 com/pilates/config/CorsConfig.class
 com/pilates/controller/BookingController.class
+com/pilates/service/WhatsappService.class
+com/pilates/service/ReminderScheduler.class

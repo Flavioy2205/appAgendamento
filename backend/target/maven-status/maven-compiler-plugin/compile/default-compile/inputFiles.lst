@@ -1,4 +1,5 @@
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/repository/UserRepository.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/service/ReminderScheduler.java
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/PilatesApplication.java
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/controller/UserController.java
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/controller/BookingController.java
@@ -10,4 +11,5 @@
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/repository/BookingRepository.java
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/model/User.java
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/model/TimeSlot.java
+/Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/service/WhatsappService.java
 /Users/macflavio/Documents/Estudos/appAgendamento/backend/src/main/java/com/pilates/controller/TimeSlotController.java

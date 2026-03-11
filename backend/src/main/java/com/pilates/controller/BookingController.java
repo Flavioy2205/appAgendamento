@@ -30,6 +30,9 @@ public class BookingController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.pilates.service.WhatsappService whatsappService;
+
     @GetMapping("/timeslots")
     public List<TimeSlotDTO> getAllTimeSlots() {
         return timeSlotRepository.findAll().stream().map(slot -> {
@@ -97,6 +100,10 @@ public class BookingController {
                         Booking booking = new Booking(user, slot, true, currentD);
                         bookingRepository.save(booking);
                         successfulBookings++;
+                        
+                        if (successfulBookings == 1) {
+                            whatsappService.sendBookingConfirmation(user, booking, occ);
+                        }
                     }
                 }
                 
@@ -117,6 +124,7 @@ public class BookingController {
 
                 Booking booking = new Booking(user, slot, false, finalBookingDate);
                 bookingRepository.save(booking);
+                whatsappService.sendBookingConfirmation(user, booking, 1);
                 return ResponseEntity.ok(Map.of("message", "Agendado o dia com sucesso"));
             }
         }
