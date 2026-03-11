@@ -176,7 +176,8 @@ function App() {
         body: JSON.stringify({ cpf: loginCpf.replace(/\D/g, '') })
       });
       if (!res.ok) {
-        throw new Error('CPF não encontrado');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'CPF não encontrado ou erro de acesso');
       }
       const user = await res.json();
       setCurrentUser(user);
